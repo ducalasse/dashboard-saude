@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saúde — Eduardo Calasse</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:      #07090c;
+  --s1:      #0c0f14;
+  --s2:      #111520;
+  --s3:      #171c28;
+  --border:  #1c2235;
+  --lime:    #c9ff47;
+  --cyan:    #3de8ff;
+  --red:     #ff4040;
+  --amber:   #ffb020;
+  --purple:  #b060ff;
+  --blue:    #3d90ff;
+  --text:    #d8dde8;
+  --muted:   #48546a;
+  --muted2:  #68768a;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── LOADER ─────────────────────────────── */
+#loader {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 24px;
+  transition: opacity 0.5s;
+}
+#loader.hide { opacity: 0; pointer-events: none; }
+.loader-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 56px; letter-spacing: 0.1em;
+  color: var(--lime);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.loader-bar-wrap {
+  width: 200px; height: 2px;
+  background: var(--s3); border-radius: 2px; overflow: hidden;
+}
+.loader-bar {
+  height: 100%; width: 0;
+  background: var(--lime);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.loader-msg {
+  font-size: 11px; color: var(--muted2);
+  letter-spacing: 0.15em;
+}
+
+/* ── LAYOUT ─────────────────────────────── */
+.app { display: none; flex-direction: column; min-height: 100vh; }
+.app.show { display: flex; }
+
+/* ── SIDEBAR ────────────────────────────── */
+.sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0;
+  width: 64px;
+  background: var(--s1);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  z-index: 50;
+  gap: 4px;
+}
+.sidebar-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px; color: var(--lime);
+  letter-spacing: 0.1em;
+  margin-bottom: 24px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+}
+.nav-btn {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  border: none; background: transparent;
+  color: var(--muted); font-size: 20px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+  position: relative;
+}
+.nav-btn:hover { background: var(--s3); color: var(--text); }
+.nav-btn.active { background: var(--lime); color: #000; }
+.nav-btn .tooltip {
+  position: absolute; left: 56px;
+  background: var(--s3); color: var(--text);
+  font-size: 11px; letter-spacing: 0.1em;
+  padding: 6px 10px; border-radius: 6px;
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transform: translateX(-4px);
+  transition: all 0.15s;
+  border: 1px solid var(--border);
+}
+.nav-btn:hover .tooltip { opacity: 1; transform: translateX(0); }
+
+.sidebar-bottom {
+  margin-top: auto;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 8px;
+}
+.sync-btn {
+  width: 36px; height: 36px;
+  border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted2);
+  font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.sync-btn:hover { border-color: var(--lime); color: var(--lime); }
+.sync-btn.spinning { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── MAIN ───────────────────────────────── */
+main {
+  margin-left: 64px;
+  flex: 1;
+  padding: 32px 32px 60px;
+  max-width: calc(100vw - 64px);
+}
+
+/* ── PAGES ──────────────────────────────── */
+.page { display: none; animation: fadeUp 0.3s ease both; }
+.page.active { display: block; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── PAGE HEADER ────────────────────────── */
+.page-header { margin-bottom: 32px; }
+.page-eyebrow {
+  font-size: 10px; letter-spacing: 0.3em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 8px;
+}
+.page-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(40px, 5vw, 72px);
+  letter-spacing: 0.05em; line-height: 0.9;
+  color: var(--text);
+}
+.page-title .accent { color: var(--lime); }
+.page-meta {
+  font-size: 11px; color: var(--muted2);
+  margin-top: 10px; display: flex; gap: 20px; flex-wrap: wrap;
+}
+.page-meta span { display: flex; align-items: center; gap: 6px; }
+.dot { width: 5px; height: 5px; border-radius: 50%; background: var(--lime); display: inline-block; }
+
+/* ── GRIDS ──────────────────────────────── */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 12px; }
+@media(max-width:900px){ .g3,.g4{grid-template-columns:1fr 1fr} }
+@media(max-width:600px){ .g2,.g3,.g4{grid-template-columns:1fr} }
+
+/* ── CARDS ──────────────────────────────── */
+.card {
+  background: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.card:hover { border-color: var(--s3); transform: translateY(-1px); }
+.card.span2 { grid-column: span 2; }
+.card.span3 { grid-column: span 3; }
+.card.span4 { grid-column: span 4; }
+
+.clabel {
+  font-size: 9px; letter-spacing: 0.25em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 8px;
+}
+.cval {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 48px; line-height: 1; letter-spacing: 0.03em;
+}
+.cunit { font-size: 16px; font-family: 'DM Mono', monospace; color: var(--muted2); margin-left: 2px; }
+.csub { font-size: 10px; color: var(--muted2); margin-top: 6px; line-height: 1.5; }
+.csub .up   { color: var(--lime); }
+.csub .down { color: var(--red);  }
+.csub .warn { color: var(--amber); }
+
+/* ── SECTION TITLE ──────────────────────── */
+.stitle {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 11px; letter-spacing: 0.3em;
+  text-transform: uppercase; color: var(--muted);
+  margin: 32px 0 12px;
+  display: flex; align-items: center; gap: 12px;
+}
+.stitle::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* ── CHART CARDS ────────────────────────── */
+.chart-wrap { position: relative; height: 200px; margin-top: 8px; }
+.chart-wrap.tall { height: 260px; }
+
+/* ── TABLE ──────────────────────────────── */
+.tbl-wrap { overflow-x: auto; margin-top: 8px; }
+table { width:100%; border-collapse: collapse; font-size:11px; }
+th {
+  font-size: 9px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--muted);
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  text-align: left; white-space: nowrap; background: var(--s1);
+  position: sticky; top: 0;
+}
+td { padding: 9px 12px; border-bottom: 1px solid var(--s3); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--s2); }
+.tbl-wrap { max-height: 400px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border); }
+
+/* ── BAR ROWS ───────────────────────────── */
+.brow { display: grid; grid-template-columns: 90px 1fr 70px; gap: 10px; align-items: center; margin-bottom: 7px; }
+.blabel { font-size: 10px; color: var(--muted2); text-align: right; }
+.btrack { height: 16px; background: var(--s3); border-radius: 3px; overflow: hidden; }
+.bfill  { height: 100%; border-radius: 3px; transition: width 1.2s cubic-bezier(0.16,1,0.3,1); }
+.bval   { font-size: 10px; font-variant-numeric: tabular-nums; }
+
+/* ── BADGES ─────────────────────────────── */
+.badge { display:inline-block; padding:2px 8px; border-radius:100px; font-size:9px; letter-spacing:0.1em; }
+.ok    { background:#001a06; color:#45ff80; border:1px solid #004020; }
+.warn  { background:#1a1000; color:var(--amber); border:1px solid #3a2000; }
+.bad   { background:#1a0000; color:var(--red); border:1px solid #3a0000; }
+.great { background:#001518; color:var(--cyan); border:1px solid #003040; }
+
+/* ── ALERT ──────────────────────────────── */
+.alert {
+  border-left: 3px solid; border-radius: 8px;
+  padding: 14px 16px; margin-bottom: 10px;
+  font-size: 11px; line-height: 1.7;
+  display: flex; gap: 12px;
+}
+.alert.ok   { background:#001a06; border-color:#45ff80; }
+.alert.warn { background:#1a1200; border-color:var(--amber); }
+.alert.bad  { background:#1a0500; border-color:var(--red); }
+.atitle { font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:0.05em; margin-bottom:2px; }
+.abody  { color:var(--muted2); font-size:10px; }
+
+/* ── STAT ROW ───────────────────────────── */
+.srow { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:11px; }
+.srow:last-child { border-bottom:none; }
+.sk { color:var(--muted2); }
+
+/* ── EMPTY STATE ────────────────────────── */
+.empty { text-align:center; padding:60px 20px; color:var(--muted2); font-size:12px; }
+.empty-icon { font-size:40px; margin-bottom:12px; }
+
+/* ── YEAR FILTER ────────────────────────── */
+.filter-bar { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+.year-btn {
+  padding:6px 16px; border-radius:100px;
+  border:1px solid var(--border);
+  background:transparent; color:var(--muted2);
+  font-family:'DM Mono',monospace; font-size:11px;
+  cursor:pointer; transition:all 0.15s;
+}
+.year-btn:hover { border-color:var(--muted2); color:var(--text); }
+.year-btn.active { background:var(--lime); border-color:var(--lime); color:#000; font-weight:600; }
+
+/* ── LAST SYNC ──────────────────────────── */
+.last-sync { font-size:9px; color:var(--muted); letter-spacing:0.1em; margin-top:4px; }
+
+/* ── CANVAS OVERRIDE ────────────────────── */
+canvas { max-width: 100% !important; }
+
+/* ── GATE (senha) ───────────────────────── */
+#gate {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 32px;
+}
+#gate.hide { display: none; }
+.gate-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 52px; letter-spacing: 0.12em;
+  color: var(--lime);
+}
+.gate-sub {
+  font-size: 11px; color: var(--muted2);
+  letter-spacing: 0.15em; text-transform: uppercase;
+  margin-top: -24px;
+}
+.gate-form {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 16px;
+  width: 280px;
+}
+.gate-input {
+  width: 100%; padding: 12px 16px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text);
+  font-family: 'DM Mono', monospace; font-size: 14px;
+  text-align: center; letter-spacing: 0.1em;
+  outline: none; transition: border-color 0.2s;
+}
+.gate-input:focus { border-color: var(--lime); }
+.gate-input.error { border-color: var(--red); animation: shake 0.3s; }
+.gate-btn {
+  width: 100%; padding: 12px;
+  background: var(--lime); color: #000;
+  border: none; border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: 13px;
+  font-weight: 500; letter-spacing: 0.08em;
+  cursor: pointer; transition: opacity 0.2s;
+}
+.gate-btn:hover { opacity: 0.85; }
+.gate-error {
+  font-size: 11px; color: var(--red);
+  letter-spacing: 0.05em; min-height: 16px;
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25%      { transform: translateX(-6px); }
+  75%      { transform: translateX(6px); }
+}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div id="gate">
+  <div class="gate-logo">SAÚDE</div>
+  <div class="gate-sub">Eduardo Calasse · Acesso Restrito</div>
+  <div class="gate-form">
+    <input id="gate-input" class="gate-input" type="password"
+           placeholder="senha" autocomplete="current-password" />
+    <button class="gate-btn" onclick="gateCheck()">ENTRAR</button>
+    <div class="gate-error" id="gate-error"></div>
+  </div>
+</div>
+<script>
+  // ── SENHA — altere o valor entre as aspas para mudar a senha ──
+  const SENHA = "saude2026";
+
+  (function() {
+    if (sessionStorage.getItem("gate_ok") === "1") {
+      document.getElementById("gate").classList.add("hide");
+    }
+  })();
+
+  function gateCheck() {
+    const input = document.getElementById("gate-input");
+    const err   = document.getElementById("gate-error");
+    if (input.value === SENHA) {
+      sessionStorage.setItem("gate_ok", "1");
+      document.getElementById("gate").classList.add("hide");
+      err.textContent = "";
+    } else {
+      input.classList.add("error");
+      err.textContent = "senha incorreta";
+      setTimeout(() => input.classList.remove("error"), 400);
+      input.value = "";
+      input.focus();
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const input = document.getElementById("gate-input");
+    if (input) input.addEventListener("keydown", e => { if (e.key === "Enter") gateCheck(); });
+  });
+</script>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-logo">SAÚDE</div>
+  <div class="loader-bar-wrap"><div class="loader-bar" id="loaderBar"></div></div>
+  <div class="loader-msg" id="loaderMsg">conectando ao google sheets...</div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">EC</div>
+    <button class="nav-btn active" onclick="showPage('overview')" data-page="overview">
+      📊<span class="tooltip">VISÃO GERAL</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('workouts')" data-page="workouts">
+      🏋️<span class="tooltip">TREINOS</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('activity')" data-page="activity">
+      🚶<span class="tooltip">ATIVIDADE</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('cardio')" data-page="cardio">
+      ❤️<span class="tooltip">CARDIO</span>
+    </button>
+    <div class="sidebar-bottom">
+      <button class="sync-btn" id="syncBtn" onclick="syncData()" title="Sincronizar dados">↻</button>
+      <div class="last-sync" id="lastSync">—</div>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- ══ OVERVIEW ══════════════════════════════════════════════ -->
+    <div class="page active" id="page-overview">
+      <div class="page-header">
+        <div class="page-eyebrow">Apple Health · Google Sheets Live</div>
+        <div class="page-title">PAINEL DE<br><span class="accent">SAÚDE</span></div>
+        <div class="page-meta">
+          <span><span class="dot"></span><span id="ov-total-records">—</span> registros totais</span>
+          <span><span class="dot"></span>Eduardo Calasse · 29 anos · São Paulo</span>
+          <span id="ov-period-meta"></span>
+        </div>
+      </div>
+
+      <div class="filter-bar" id="ov-filter"></div>
+
+      <div class="g4">
+        <div class="card">
+          <div class="clabel">Treinos no Ano</div>
+          <div class="cval" id="ov-treinos" style="color:var(--lime)">—</div>
+          <div class="csub" id="ov-treinos-sub">carregando...</div>
+        </div>
+        <div class="card">
+          <div class="clabel">Calorias Queimadas</div>
+          <div class="cval" id="ov-cal" style="color:var(--amber)">—</div>
+          <div class="csub" id="ov-cal-sub">em treinos registrados</div>
+        </div>
+        <div class="card">
+          <div class="clabel">Passos no Ano</div>
+          <div class="cval" id="ov-steps" style="color:var(--cyan)">—</div>
+          <div class="csub" id="ov-steps-sub">média diária</div>
+        </div>
+        <div class="card">
+          <div class="clabel">VO2 Max Atual</div>
+          <div class="cval" id="ov-vo2" style="color:var(--lime)">—</div>
+          <div class="csub" id="ov-vo2-sub">mL/kg/min</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="card">
+          <div class="clabel">Treinos por Mês</div>
+          <div class="chart-wrap"><canvas id="chartTreinosMes"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="clabel">Passos Diários (últimos 30 dias)</div>
+          <div class="chart-wrap"><canvas id="chartPassos30"></canvas></div>
+        </div>
+      </div>
+
+      <div class="stitle">Alertas</div>
+      <div id="ov-alerts"></div>
+    </div>
+
+    <!-- ══ WORKOUTS ══════════════════════════════════════════════ -->
+    <div class="page" id="page-workouts">
+      <div class="page-header">
+        <div class="page-eyebrow">Treinos Registrados · Apple Watch</div>
+        <div class="page-title">HISTÓRICO DE<br><span class="accent">TREINOS</span></div>
+        <div class="page-meta">
+          <span><span class="dot"></span><span id="wk-total">—</span> sessões totais</span>
+          <span><span class="dot"></span><span id="wk-horas">—</span> horas treinadas</span>
+          <span><span class="dot"></span><span id="wk-cal-total">—</span> kcal queimadas</span>
+        </div>
+      </div>
+
+      <div class="filter-bar" id="wk-filter"></div>
+
+      <div class="g3">
+        <div class="card">
+          <div class="clabel">Musculação</div>
+          <div class="cval" id="wk-musculacao" style="color:var(--lime)">—</div>
+          <div class="csub" id="wk-musculacao-sub">sessões no período</div>
+        </div>
+        <div class="card">
+          <div class="clabel">Corrida</div>
+          <div class="cval" id="wk-corrida" style="color:var(--cyan)">—</div>
+          <div class="csub" id="wk-corrida-sub">sessões · km rodados</div>
+        </div>
+        <div class="card">
+          <div class="clabel">Outros</div>
+          <div class="cval" id="wk-outros" style="color:var(--amber)">—</div>
+          <div class="csub">caminhada, hiking, etc</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="card">
+          <div class="clabel">Distribuição por Tipo</div>
+          <div class="chart-wrap" style="height:180px"><canvas id="chartTipos"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="clabel">Calorias por Mês</div>
+          <div class="chart-wrap"><canvas id="chartCalMes"></canvas></div>
+        </div>
+      </div>
+
+      <div class="stitle">Últimos Treinos</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Data</th><th>Tipo</th><th>Duração</th>
+            <th>Calorias</th><th>Distância</th><th>FC Média</th>
+          </tr></thead>
+          <tbody id="wk-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ ACTIVITY ══════════════════════════════════════════════ -->
+    <div class="page" id="page-activity">
+      <div class="page-header">
+        <div class="page-eyebrow">Atividade Física Diária · Apple Watch</div>
+        <div class="page-title">ATIVIDADE<br><span class="accent">DIÁRIA</span></div>
+        <div class="page-meta">
+          <span><span class="dot"></span><span id="ac-dias">—</span> dias registrados</span>
+          <span><span class="dot"></span>Passos, distância, calorias</span>
+        </div>
+      </div>
+
+      <div class="filter-bar" id="ac-filter"></div>
+
+      <div class="g4">
+        <div class="card">
+          <div class="clabel">Total de Passos</div>
+          <div class="cval" id="ac-steps" style="color:var(--cyan)">—</div>
+          <div class="csub" id="ac-steps-sub">no período selecionado</div>
+        </div>
+        <div class="card">
+          <div class="clabel">Média Diária</div>
+          <div class="cval" id="ac-avg-steps" style="color:var(--lime)">—</div>
+          <div class="csub">passos/dia <span id="ac-steps-badge"></span></div>
+        </div>
+        <div class="card">
+          <div class="clabel">Distância Total</div>
+          <div class="cval" id="ac-dist" style="color:var(--amber)">—</div>
+          <div class="csub cunit-sub">km percorridos</div>
+        </div>
+        <div class="card">
+          <div class="clabel">Calorias Ativas</div>
+          <div class="cval" id="ac-cal" style="color:var(--red)">—</div>
+          <div class="csub">kcal no período</div>
+        </div>
+      </div>
+
+      <div class="card span4" style="margin-bottom:12px">
+        <div class="clabel">Passos Diários — Histórico</div>
+        <div class="chart-wrap tall"><canvas id="chartPassosHist"></canvas></div>
+      </div>
+
+      <div class="g2">
+        <div class="card">
+          <div class="clabel">Distribuição de Passos por Faixa</div>
+          <div style="margin-top:14px" id="ac-steps-dist"></div>
+        </div>
+        <div class="card">
+          <div class="clabel">Dias com Meta ≥8.000 passos</div>
+          <div class="chart-wrap" style="height:160px"><canvas id="chartMeta"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ CARDIO ═════════════════════════════════════════════════ -->
+    <div class="page" id="page-cardio">
+      <div class="page-header">
+        <div class="page-eyebrow">Saúde Cardiovascular · Apple Watch</div>
+        <div class="page-title">SAÚDE<br><span class="accent">CARDÍACA</span></div>
+        <div class="page-meta">
+          <span><span class="dot"></span><span id="cd-records">—</span> registros de sinais vitais</span>
+        </div>
+      </div>
+
+      <div class="g4">
+        <div class="card">
+          <div class="clabel">FC Repouso Média</div>
+          <div class="cval" id="cd-rhr" style="color:var(--cyan)">—</div>
+          <div class="csub" id="cd-rhr-sub">bpm · 247 leituras</div>
+        </div>
+        <div class="card">
+          <div class="clabel">VO2 Max Atual</div>
+          <div class="cval" id="cd-vo2" style="color:var(--lime)">—</div>
+          <div class="csub" id="cd-vo2-sub">mL/kg/min</div>
+        </div>
+        <div class="card">
+          <div class="clabel">SpO2 Média</div>
+          <div class="cval" id="cd-spo2" style="color:var(--blue)">—</div>
+          <div class="csub" id="cd-spo2-sub">saturação de oxigênio</div>
+        </div>
+        <div class="card">
+          <div class="clabel">HRV Médio</div>
+          <div class="cval" id="cd-hrv" style="color:var(--purple)">—</div>
+          <div class="csub">SDNN em ms</div>
+        </div>
+      </div>
+
+      <div class="g2">
+        <div class="card">
+          <div class="clabel">FC Repouso — Evolução</div>
+          <div class="chart-wrap"><canvas id="chartRHR"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="clabel">VO2 Max — Evolução Histórica</div>
+          <div class="chart-wrap"><canvas id="chartVO2"></canvas></div>
+        </div>
+      </div>
+
+      <div class="stitle">Últimas Leituras</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Data</th><th>FC Repouso</th><th>SpO2</th><th>VO2 Max</th><th>HRV</th>
+          </tr></thead>
+          <tbody id="cd-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const SHEET_ID = "1q5NZtbWjMAkX4CVzdG4JwDW2PkwArvxRU_tgdxYAKmw";
+const CSV = (sheet) =>
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let DATA = { treinos: [], atividade: [], sinais: [] };
+let YEAR = new Date().getFullYear();
+let charts = {};
+
+// ═══════════════════════════════════════════════
+// LOADER
+// ═══════════════════════════════════════════════
+function setLoader(pct, msg) {
+  document.getElementById('loaderBar').style.width = pct + '%';
+  document.getElementById('loaderMsg').textContent = msg;
+}
+
+// ═══════════════════════════════════════════════
+// CSV PARSER
+// ═══════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  // skip header rows (row 1 = title, row 2 = headers)
+  // data starts at row 3
+  const dataLines = lines.slice(2);
+  return dataLines.map(line => {
+    const cols = [];
+    let cur = '', inQ = false;
+    for (const ch of line) {
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    cols.push(cur.trim());
+    return cols;
+  }).filter(r => r[0] && r[0].match(/^\d{4}-\d{2}-\d{2}/));
+}
+
+async function fetchSheet(name) {
+  const r = await fetch(CSV(name));
+  const text = await r.text();
+  return parseCSV(text);
+}
+
+// ═══════════════════════════════════════════════
+// DATA LOAD
+// ═══════════════════════════════════════════════
+async function loadData() {
+  try {
+    setLoader(10, 'carregando treinos...');
+    const rawT = await fetchSheet('Treinos');
+    DATA.treinos = rawT.map(r => ({
+      date: r[0], year: +r[1], month: +r[2],
+      type: r[3] || '',
+      duration: parseFloat(r[4]) || 0,
+      calories: parseFloat(r[5]) || 0,
+      distance: parseFloat(r[6]) || 0,
+      hr: parseFloat(r[7]) || 0,
+      source: r[8] || ''
+    }));
+
+    setLoader(40, 'carregando atividade diária...');
+    const rawA = await fetchSheet('Atividade');
+    DATA.atividade = rawA.map(r => ({
+      date: r[0], year: +r[1], month: +r[2],
+      weekday: r[3] || '',
+      steps: parseFloat(r[4]) || 0,
+      dist: parseFloat(r[5]) || 0,
+      active_cal: parseFloat(r[6]) || 0,
+      basal_cal: parseFloat(r[7]) || 0,
+      total_cal: parseFloat(r[8]) || 0,
+      exer_min: parseFloat(r[9]) || 0,
+      flights: parseFloat(r[10]) || 0
+    }));
+
+    setLoader(70, 'carregando sinais vitais...');
+    const rawS = await fetchSheet('Sinais Vitais');
+    DATA.sinais = rawS.map(r => ({
+      date: r[0], year: +r[1], month: +r[2],
+      rhr: parseFloat(r[3]) || 0,
+      spo2: parseFloat(r[4]) || 0,
+      vo2: parseFloat(r[5]) || 0,
+      hrv: parseFloat(r[6]) || 0
+    }));
+
+    setLoader(100, 'pronto!');
+    await new Promise(r => setTimeout(r, 400));
+
+    document.getElementById('loader').classList.add('hide');
+    document.getElementById('app').classList.add('show');
+    document.getElementById('lastSync').textContent = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+
+    renderAll();
+  } catch(e) {
+    setLoader(100, '❌ erro ao carregar dados');
+    console.error(e);
+  }
+}
+
+async function syncData() {
+  const btn = document.getElementById('syncBtn');
+  btn.classList.add('spinning');
+  await loadData();
+  btn.classList.remove('spinning');
+}
+
+// ═══════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  document.querySelector(`[data-page="${id}"]`).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+function fmt(n, dec=0) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return n.toLocaleString('pt-BR', {minimumFractionDigits:dec, maximumFractionDigits:dec});
+}
+function fmtK(n) {
+  if (n >= 1_000_000) return (n/1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000)     return (n/1_000).toFixed(1) + 'K';
+  return fmt(n);
+}
+
+const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const TYPE_LABELS = {
+  'TraditionalStrengthTraining': 'Musculação',
+  'Running': 'Corrida',
+  'Walking': 'Caminhada',
+  'Hiking': 'Hiking',
+  'FunctionalStrengthTraining': 'Funcional',
+  'Cycling': 'Ciclismo',
+};
+function typeLabel(t) { return TYPE_LABELS[t] || t.replace(/([A-Z])/g,' $1').trim(); }
+
+function getYears(data) {
+  return [...new Set(data.map(r => r.year))].sort();
+}
+
+function allYears() {
+  return [...new Set([
+    ...DATA.treinos.map(r=>r.year),
+    ...DATA.atividade.map(r=>r.year)
+  ])].sort();
+}
+
+function makeFilter(containerId, onChange) {
+  const years = allYears();
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = '';
+  years.forEach(y => {
+    const b = document.createElement('button');
+    b.className = 'year-btn' + (y === YEAR ? ' active' : '');
+    b.textContent = y;
+    b.onclick = () => {
+      YEAR = y;
+      document.querySelectorAll('.year-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent == y);
+      });
+      onChange(y);
+    };
+    wrap.appendChild(b);
+  });
+}
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+const chartDefaults = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { grid:{color:'#1c2235'}, ticks:{color:'#48546a', font:{family:'DM Mono',size:10}} },
+    y: { grid:{color:'#1c2235'}, ticks:{color:'#48546a', font:{family:'DM Mono',size:10}} }
+  }
+};
+
+// ═══════════════════════════════════════════════
+// OVERVIEW
+// ═══════════════════════════════════════════════
+function renderOverview(year) {
+  const t = DATA.treinos.filter(r => r.year === year);
+  const a = DATA.atividade.filter(r => r.year === year);
+  const s = DATA.sinais.filter(r => r.vo2 > 0).sort((a,b) => b.date.localeCompare(a.date));
+
+  const totalRecords = DATA.treinos.length + DATA.atividade.length + DATA.sinais.length;
+  document.getElementById('ov-total-records').textContent = fmt(totalRecords);
+
+  // KPIs
+  document.getElementById('ov-treinos').textContent = t.length;
+  const prevT = DATA.treinos.filter(r => r.year === year-1).length;
+  const diffT = t.length - prevT;
+  document.getElementById('ov-treinos-sub').innerHTML =
+    `${diffT >= 0 ? '<span class="up">↑' : '<span class="down">↓'}${Math.abs(diffT)} vs ${year-1}</span> · ${prevT} no ano anterior`;
+
+  const totalCal = t.reduce((s,r) => s+r.calories, 0);
+  document.getElementById('ov-cal').textContent = fmtK(totalCal);
+  document.getElementById('ov-cal-sub').textContent = `${fmt(totalCal/Math.max(t.length,1))} kcal/treino`;
+
+  const totalSteps = a.reduce((s,r) => s+r.steps, 0);
+  const avgSteps = totalSteps / Math.max(a.length, 1);
+  document.getElementById('ov-steps').textContent = fmtK(totalSteps);
+  document.getElementById('ov-steps-sub').textContent = `média ${fmt(avgSteps)} passos/dia`;
+
+  const latestVO2 = s[0];
+  document.getElementById('ov-vo2').textContent = latestVO2 ? fmt(latestVO2.vo2, 1) : '—';
+  document.getElementById('ov-vo2-sub').innerHTML = latestVO2
+    ? `${latestVO2.date} · <span class="badge great">Excelente</span>` : 'sem dados';
+
+  // Chart: treinos por mês
+  const byMonth = Array(12).fill(0);
+  t.forEach(r => { if(r.month>=1 && r.month<=12) byMonth[r.month-1]++; });
+  destroyChart('chartTreinosMes');
+  charts['chartTreinosMes'] = new Chart(document.getElementById('chartTreinosMes'), {
+    type: 'bar',
+    data: {
+      labels: MONTHS,
+      datasets: [{ data: byMonth, backgroundColor: byMonth.map(v => v>0 ? '#c9ff4766' : '#1c2235'), borderColor: byMonth.map(v => v>0 ? '#c9ff47' : '#1c2235'), borderWidth: 1, borderRadius: 4 }]
+    },
+    options: { ...chartDefaults }
+  });
+
+  // Chart: passos últimos 30 dias
+  const last30 = DATA.atividade.slice(-30);
+  destroyChart('chartPassos30');
+  charts['chartPassos30'] = new Chart(document.getElementById('chartPassos30'), {
+    type: 'line',
+    data: {
+      labels: last30.map(r => r.date.slice(5)),
+      datasets: [{
+        data: last30.map(r => r.steps),
+        borderColor: '#3de8ff', borderWidth: 2,
+        pointRadius: 0, tension: 0.3,
+        fill: true,
+        backgroundColor: (ctx) => {
+          const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
+          g.addColorStop(0,'#3de8ff30'); g.addColorStop(1,'#3de8ff00');
+          return g;
+        }
+      },{
+        data: last30.map(() => 8000),
+        borderColor: '#c9ff4740', borderWidth: 1,
+        borderDash: [4,4], pointRadius: 0
+      }]
+    },
+    options: { ...chartDefaults }
+  });
+
+  // Alerts
+  const alertsEl = document.getElementById('ov-alerts');
+  alertsEl.innerHTML = '';
+  const alerts = buildAlerts(year);
+  alerts.forEach(a => {
+    alertsEl.innerHTML += `<div class="alert ${a.type}"><div>${a.icon}</div><div><div class="atitle">${a.title}</div><div class="abody">${a.body}</div></div></div>`;
+  });
+}
+
+function buildAlerts(year) {
+  const alerts = [];
+  const t = DATA.treinos.filter(r => r.year === year);
+  const a = DATA.atividade.filter(r => r.year === year);
+  const avgSteps = a.reduce((s,r)=>s+r.steps,0) / Math.max(a.length,1);
+  const s = DATA.sinais.filter(r => r.vo2 > 0).sort((a,b)=>b.date.localeCompare(a.date));
+  const latestVO2 = s[0]?.vo2 || 0;
+  const lowSpo2 = DATA.sinais.filter(r => r.spo2 > 0 && r.spo2 < 95).length;
+  const totalSpo2 = DATA.sinais.filter(r => r.spo2 > 0).length;
+
+  if (t.length < 8 && new Date().getFullYear() === year) {
+    const months = new Date().getMonth() + 1;
+    const expected = months * 8;
+    alerts.push({ type:'bad', icon:'🔴', title:'Frequência de Treinos Abaixo do Esperado', body:`${t.length} treinos em ${year} vs meta de ~${expected} para esse período do ano. Em 2024 você fez 123. Foco!` });
+  } else if (t.length >= 80) {
+    alerts.push({ type:'ok', icon:'🟢', title:'Excelente Consistência de Treinos', body:`${t.length} treinos em ${year} — ritmo acima de 6 treinos/mês. Continue!` });
+  }
+
+  if (avgSteps >= 8000) {
+    alerts.push({ type:'ok', icon:'🟢', title:'Meta de Passos Atingida', body:`Média de ${fmt(avgSteps)} passos/dia em ${year}. Meta recomendada (8.000) sendo superada.` });
+  } else if (avgSteps > 0) {
+    alerts.push({ type:'warn', icon:'🟡', title:'Média de Passos Abaixo da Meta', body:`Média de ${fmt(avgSteps)} passos/dia. Meta: 8.000. Aumente a atividade diária.` });
+  }
+
+  if (latestVO2 >= 51) {
+    alerts.push({ type:'ok', icon:'🟢', title:`VO2 Max Excelente — ${fmt(latestVO2,1)} mL/kg/min`, body:'Para homens de 29 anos, valores acima de 51 são classificados como Excelente. Parabéns!' });
+  }
+
+  if (totalSpo2 > 0 && lowSpo2 / totalSpo2 > 0.15) {
+    alerts.push({ type:'warn', icon:'🟡', title:'SpO2 com Episódios Baixos', body:`${fmt(lowSpo2/totalSpo2*100,0)}% dos registros abaixo de 95%. Pode indicar apneia do sono. Vale checar com um médico.` });
+  }
+
+  return alerts;
+}
+
+// ═══════════════════════════════════════════════
+// WORKOUTS
+// ═══════════════════════════════════════════════
+function renderWorkouts(year) {
+  const t = DATA.treinos.filter(r => r.year === year);
+  document.getElementById('wk-total').textContent = DATA.treinos.length;
+  document.getElementById('wk-horas').textContent = fmt(DATA.treinos.reduce((s,r)=>s+r.duration,0)/60,0);
+  document.getElementById('wk-cal-total').textContent = fmtK(DATA.treinos.reduce((s,r)=>s+r.calories,0));
+
+  const musc = t.filter(r => r.type === 'TraditionalStrengthTraining');
+  const run  = t.filter(r => r.type === 'Running');
+  const outros = t.filter(r => !['TraditionalStrengthTraining','Running'].includes(r.type));
+
+  document.getElementById('wk-musculacao').textContent = musc.length;
+  document.getElementById('wk-musculacao-sub').textContent = `${fmt(musc.reduce((s,r)=>s+r.duration,0)/60,0)}h · ${fmtK(musc.reduce((s,r)=>s+r.calories,0))} kcal`;
+  document.getElementById('wk-corrida').textContent = run.length;
+  document.getElementById('wk-corrida-sub').textContent = `${fmt(run.reduce((s,r)=>s+r.distance,0),1)} km rodados`;
+  document.getElementById('wk-outros').textContent = outros.length;
+
+  // Tipo doughnut
+  const typeCount = {};
+  t.forEach(r => { typeCount[r.type] = (typeCount[r.type]||0) + 1; });
+  const tipos = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]);
+  const COLORS = ['#c9ff47','#3de8ff','#ffb020','#b060ff','#ff4040','#3d90ff'];
+  destroyChart('chartTipos');
+  charts['chartTipos'] = new Chart(document.getElementById('chartTipos'), {
+    type: 'doughnut',
+    data: {
+      labels: tipos.map(([k])=>typeLabel(k)),
+      datasets: [{ data: tipos.map(([,v])=>v), backgroundColor: COLORS, borderWidth: 0 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{ position:'right', labels:{ color:'#68768a', font:{family:'DM Mono',size:10}, boxWidth:10 } } },
+      cutout: '65%'
+    }
+  });
+
+  // Calorias por mês
+  const calMes = Array(12).fill(0);
+  t.forEach(r => { if(r.month>=1&&r.month<=12) calMes[r.month-1] += r.calories; });
+  destroyChart('chartCalMes');
+  charts['chartCalMes'] = new Chart(document.getElementById('chartCalMes'), {
+    type: 'bar',
+    data: {
+      labels: MONTHS,
+      datasets: [{ data: calMes, backgroundColor:'#ffb02066', borderColor:'#ffb020', borderWidth:1, borderRadius:4 }]
+    },
+    options: { ...chartDefaults }
+  });
+
+  // Tabela últimos 30
+  const last = [...t].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
+  document.getElementById('wk-table').innerHTML = last.map(r => `
+    <tr>
+      <td>${r.date}</td>
+      <td style="color:${r.type==='TraditionalStrengthTraining'?'var(--lime)':r.type==='Running'?'var(--cyan)':'var(--amber)'}">${typeLabel(r.type)}</td>
+      <td>${fmt(r.duration)} min</td>
+      <td style="color:var(--amber)">${fmt(r.calories)} kcal</td>
+      <td style="color:var(--cyan)">${r.distance > 0 ? fmt(r.distance,1)+' km' : '—'}</td>
+      <td>${r.hr > 0 ? fmt(r.hr)+' bpm' : '—'}</td>
+    </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════
+// ACTIVITY
+// ═══════════════════════════════════════════════
+function renderActivity(year) {
+  const a = DATA.atividade.filter(r => r.year === year);
+  document.getElementById('ac-dias').textContent = DATA.atividade.length;
+
+  const totalSteps = a.reduce((s,r)=>s+r.steps,0);
+  const avgSteps   = totalSteps / Math.max(a.length,1);
+  const totalDist  = a.reduce((s,r)=>s+r.dist,0);
+  const totalCal   = a.reduce((s,r)=>s+r.active_cal,0);
+
+  document.getElementById('ac-steps').textContent = fmtK(totalSteps);
+  document.getElementById('ac-steps-sub').textContent = `${fmt(totalSteps)} passos em ${year}`;
+  document.getElementById('ac-avg-steps').textContent = fmt(avgSteps);
+  document.getElementById('ac-steps-badge').innerHTML = avgSteps >= 8000
+    ? '<span class="badge ok">meta ✓</span>'
+    : '<span class="badge warn">abaixo da meta</span>';
+  document.getElementById('ac-dist').textContent = fmt(totalDist,0);
+  document.getElementById('ac-cal').textContent = fmtK(totalCal);
+
+  // Histórico linha
+  const sorted = [...a].sort((a,b)=>a.date.localeCompare(b.date));
+  // agrupa por mês para não ficar pesado
+  const monthlySteps = {};
+  sorted.forEach(r => {
+    const k = `${r.year}-${String(r.month).padStart(2,'0')}`;
+    monthlySteps[k] = (monthlySteps[k]||0) + r.steps;
+  });
+  const mKeys = Object.keys(monthlySteps).sort();
+  destroyChart('chartPassosHist');
+  charts['chartPassosHist'] = new Chart(document.getElementById('chartPassosHist'), {
+    type: 'bar',
+    data: {
+      labels: mKeys.map(k => k.slice(0,7)),
+      datasets: [{
+        data: mKeys.map(k => Math.round(monthlySteps[k] / (sorted.filter(r=>`${r.year}-${String(r.month).padStart(2,'0')}`===k).length||1))),
+        backgroundColor: mKeys.map(k => {
+          const avg = monthlySteps[k] / (sorted.filter(r=>`${r.year}-${String(r.month).padStart(2,'0')}`===k).length||1);
+          return avg >= 8000 ? '#c9ff4766' : '#3de8ff33';
+        }),
+        borderColor: mKeys.map(k => {
+          const avg = monthlySteps[k] / (sorted.filter(r=>`${r.year}-${String(r.month).padStart(2,'0')}`===k).length||1);
+          return avg >= 8000 ? '#c9ff47' : '#3de8ff';
+        }),
+        borderWidth: 1, borderRadius: 3
+      }]
+    },
+    options: { ...chartDefaults, plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => fmt(ctx.raw) + ' passos/dia (média)' } } } }
+  });
+
+  // Distribuição passos
+  const faixas = [
+    { label:'< 3.000',  min:0,     max:2999,  color:'var(--red)' },
+    { label:'3k – 5k',  min:3000,  max:4999,  color:'var(--amber)' },
+    { label:'5k – 8k',  min:5000,  max:7999,  color:'var(--cyan)' },
+    { label:'8k – 12k', min:8000,  max:11999, color:'var(--lime)' },
+    { label:'> 12k',    min:12000, max:Infinity, color:'var(--lime)' },
+  ];
+  const maxF = Math.max(...faixas.map(f => a.filter(r=>r.steps>=f.min&&r.steps<=f.max).length));
+  document.getElementById('ac-steps-dist').innerHTML = faixas.map(f => {
+    const cnt = a.filter(r => r.steps >= f.min && r.steps <= f.max).length;
+    const pct = a.length > 0 ? cnt/a.length*100 : 0;
+    return `<div class="brow">
+      <div class="blabel">${f.label}</div>
+      <div class="btrack"><div class="bfill" style="width:${maxF>0?cnt/maxF*100:0}%;background:${f.color}"></div></div>
+      <div class="bval">${cnt} <span style="color:var(--muted2)">(${fmt(pct,0)}%)</span></div>
+    </div>`;
+  }).join('');
+
+  // Meta chart
+  const comMeta    = a.filter(r => r.steps >= 8000).length;
+  const semMeta    = a.length - comMeta;
+  destroyChart('chartMeta');
+  charts['chartMeta'] = new Chart(document.getElementById('chartMeta'), {
+    type: 'doughnut',
+    data: {
+      labels: [`≥8k passos (${comMeta})`, `<8k passos (${semMeta})`],
+      datasets: [{ data: [comMeta, semMeta], backgroundColor:['#c9ff47','#1c2235'], borderWidth:0 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, cutout:'70%',
+      plugins:{ legend:{ position:'bottom', labels:{ color:'#68768a', font:{family:'DM Mono',size:10}, boxWidth:10 } } }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+// CARDIO
+// ═══════════════════════════════════════════════
+function renderCardio() {
+  const s = DATA.sinais.filter(r => r.rhr > 0 || r.vo2 > 0 || r.spo2 > 0);
+  document.getElementById('cd-records').textContent = s.length;
+
+  const rhrVals  = s.filter(r=>r.rhr>0).map(r=>r.rhr);
+  const vo2Vals  = s.filter(r=>r.vo2>0).sort((a,b)=>b.date.localeCompare(a.date));
+  const spo2Vals = s.filter(r=>r.spo2>0).map(r=>r.spo2);
+  const hrvVals  = s.filter(r=>r.hrv>0).map(r=>r.hrv);
+
+  const avgRHR  = rhrVals.reduce((a,b)=>a+b,0)/Math.max(rhrVals.length,1);
+  const latVO2  = vo2Vals[0]?.vo2 || 0;
+  const avgSPO2 = spo2Vals.reduce((a,b)=>a+b,0)/Math.max(spo2Vals.length,1);
+  const avgHRV  = hrvVals.reduce((a,b)=>a+b,0)/Math.max(hrvVals.length,1);
+
+  document.getElementById('cd-rhr').textContent  = fmt(avgRHR,0);
+  document.getElementById('cd-vo2').textContent  = fmt(latVO2,1);
+  document.getElementById('cd-spo2').textContent = fmt(avgSPO2,1);
+  document.getElementById('cd-hrv').textContent  = avgHRV > 0 ? fmt(avgHRV,0) : '—';
+
+  document.getElementById('cd-rhr-sub').innerHTML = avgRHR < 65
+    ? `<span class="badge ok">normal</span> · ${rhrVals.length} leituras`
+    : `<span class="badge warn">acima da média</span> · ${rhrVals.length} leituras`;
+  document.getElementById('cd-vo2-sub').innerHTML = latVO2 >= 51
+    ? `<span class="badge great">Excelente</span> · ${vo2Vals[0]?.date || ''}`
+    : `<span class="badge ok">Bom</span> · ${vo2Vals[0]?.date || ''}`;
+  document.getElementById('cd-spo2-sub').innerHTML = avgSPO2 >= 97
+    ? `<span class="badge ok">normal</span>` : `<span class="badge warn">atenção</span>`;
+
+  // RHR chart
+  const rhrData = s.filter(r=>r.rhr>0).sort((a,b)=>a.date.localeCompare(b.date)).slice(-60);
+  destroyChart('chartRHR');
+  charts['chartRHR'] = new Chart(document.getElementById('chartRHR'), {
+    type: 'line',
+    data: {
+      labels: rhrData.map(r=>r.date.slice(5)),
+      datasets: [{
+        data: rhrData.map(r=>r.rhr),
+        borderColor:'#3de8ff', borderWidth:2, pointRadius:2,
+        pointBackgroundColor:'#3de8ff', tension:0.3,
+        fill:true,
+        backgroundColor:(ctx)=>{
+          const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);
+          g.addColorStop(0,'#3de8ff25'); g.addColorStop(1,'transparent'); return g;
+        }
+      }]
+    },
+    options: { ...chartDefaults }
+  });
+
+  // VO2 chart
+  const vo2All = s.filter(r=>r.vo2>0).sort((a,b)=>a.date.localeCompare(b.date));
+  destroyChart('chartVO2');
+  charts['chartVO2'] = new Chart(document.getElementById('chartVO2'), {
+    type: 'line',
+    data: {
+      labels: vo2All.map(r=>r.date.slice(0,7)),
+      datasets: [{
+        data: vo2All.map(r=>r.vo2),
+        borderColor:'#c9ff47', borderWidth:2.5,
+        pointRadius:3, pointBackgroundColor:'#c9ff47', tension:0.3,
+        fill:true,
+        backgroundColor:(ctx)=>{
+          const g=ctx.chart.ctx.createLinearGradient(0,0,0,200);
+          g.addColorStop(0,'#c9ff4730'); g.addColorStop(1,'transparent'); return g;
+        }
+      },{
+        data: vo2All.map(()=>51),
+        borderColor:'#c9ff4740', borderWidth:1,
+        borderDash:[4,4], pointRadius:0, label:'Meta Excelente'
+      }]
+    },
+    options: { ...chartDefaults, plugins:{ legend:{display:false} } }
+  });
+
+  // Tabela
+  const last = [...s].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,20);
+  document.getElementById('cd-table').innerHTML = last.map(r => `
+    <tr>
+      <td>${r.date}</td>
+      <td style="color:${r.rhr>0?(r.rhr<65?'var(--lime)':r.rhr<75?'var(--text)':'var(--amber)'):'var(--muted)'}">${r.rhr > 0 ? r.rhr+' bpm' : '—'}</td>
+      <td style="color:${r.spo2>0?(r.spo2>=97?'var(--lime)':r.spo2>=95?'var(--amber)':'var(--red)'):'var(--muted)'}">${r.spo2 > 0 ? r.spo2+'%' : '—'}</td>
+      <td style="color:${r.vo2>0?'var(--lime)':'var(--muted)'}">${r.vo2 > 0 ? r.vo2+' mL/kg/min' : '—'}</td>
+      <td style="color:var(--purple)">${r.hrv > 0 ? fmt(r.hrv,0)+' ms' : '—'}</td>
+    </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════
+// RENDER ALL
+// ═══════════════════════════════════════════════
+function renderAll() {
+  const years = allYears();
+  YEAR = years.includes(new Date().getFullYear()) ? new Date().getFullYear() : years[years.length-1];
+
+  makeFilter('ov-filter', (y) => renderOverview(y));
+  makeFilter('wk-filter', (y) => renderWorkouts(y));
+  makeFilter('ac-filter', (y) => renderActivity(y));
+
+  renderOverview(YEAR);
+  renderWorkouts(YEAR);
+  renderActivity(YEAR);
+  renderCardio();
+}
+
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+loadData();
+</script>
+</body>
+</html>
